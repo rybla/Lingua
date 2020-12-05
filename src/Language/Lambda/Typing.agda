@@ -1,24 +1,16 @@
 import Level
 open import Function
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality -- hiding ([_])
+open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Data.Empty
 open import Data.Unit
-open import Data.Bool
-open import Data.Nat as Nat using (ℕ; zero) renaming (suc to 1+)
-import Data.Nat.Properties as NatProperties
-open import Data.Fin as Fin using (Fin) renaming (zero to #0; suc to #1+)
-import Data.Fin.Properties as FinProperties
+open import Data.Nat as Nat
+  using (ℕ; zero)
+  renaming (suc to 1+)
 open import Data.Product
   using (∃-syntax; _×_; proj₁; proj₂)
   renaming (_,_ to _&_)
-open import Data.List using (List; []; _∷_; [_]; _++_)
-
-open import Data.Maybe using (Maybe; just; nothing; maybe)
-import Data.Maybe.Categorical as MaybeCategorical
-import Category.Monad as Monad
-open Monad.RawMonadPlus (MaybeCategorical.monadPlus {Level.zero})
 
 open import Language.Lambda.Grammar.Definitions
 open import Language.Lambda.Grammar.DecidableEquality
@@ -32,7 +24,6 @@ module Language.Lambda.Typing where
 -- Typing
 -- ================================================================
 
-infixr 18 _⦂_
 infixr 17 _⦂_,_
 infix  10 _⊢_⦂_
 
@@ -41,82 +32,96 @@ infix  10 _⊢_⦂_
 -- Typing Context
 -- ----------------------------------------------------------------
 
--- context
+-- ``Γ : Context n`` is a context of typing information of
+-- ``Term n``s.
 data Context : ℕ → Set where
-  ø     : ∀ {n} → Context n
+  ø     : Context 0
   _⦂_,_ : ∀ n → Type → Context n → Context (1+ n)
 
-_⦂_ : ∀ n → Type → Context (1+ n)
-x ⦂ τ = x ⦂ τ , ø
 
+_ : Context 2
+_ = 1 ⦂ `𝟙 , 0 ⦂ `𝟙 , ø
 
 -- ----------------------------------------------------------------
 -- Type Judgment
 -- ----------------------------------------------------------------
 
+
+-- ``Γ ⊢ a ⦂ α`` is the type of derivations that,
+-- in context ``Γ``, the term ``a`` has type ``α``.
 data _⊢_⦂_ : ∀ {n} → Context n → Term n → Type → Set where
 
-  name : ∀ {n} {Γ : Context n} {τ} →
+  ø⊢1⦂𝟙 :
     ------------------------------------------------------
-    n ⦂ τ , Γ ⊢ ` n ⦂ τ
+    ø ⊢ `1 ⦂ `𝟙
 
-  function : ∀ {n} {Γ : Context n} {t : Term (1+ n)} {σ τ} →
-    n ⦂ σ , Γ ⊢ t ⦂ τ →
-    ---------------------------------------------
-    Γ ⊢ `λ n `⦂ σ `⇒ t ⦂ σ `→ τ
-
-  application : ∀ {n} {Γ : Context n} {s t : Term n} {σ τ} →
-    Γ ⊢ s ⦂ σ `→ τ →
-    Γ ⊢ t ⦂ σ →
-    ---------------------------------------------
-    Γ ⊢ s `⋆ t ⦂ τ
-
-  injection : ∀ {n} {Γ : Context n} {t : Term n} {σ τ} →
-    Γ ⊢ t ⦂ τ →
+  name : ∀ {n} {Γ : Context n} {α} →
     ------------------------------------------------------
-    n ⦂ σ , Γ ⊢ `↑ t ⦂ τ
+    n ⦂ α , Γ ⊢ ` n ⦂ α
+
+  function : ∀ {n} {Γ : Context n} {t : Term (1+ n)} {β α} →
+    n ⦂ β , Γ ⊢ t ⦂ α →
+    ---------------------------------------------
+    Γ ⊢ `λ n `⦂ β `⇒ t ⦂ β `→ α
+
+  application : ∀ {n} {Γ : Context n} {s t : Term n} {β α} →
+    Γ ⊢ s ⦂ β `→ α →
+    Γ ⊢ t ⦂ β →
+    ---------------------------------------------
+    Γ ⊢ s `∙ t ⦂ α
+
+  injection : ∀ {n} {Γ : Context n} {t : Term n} {β α} →
+    Γ ⊢ t ⦂ α →
+    ------------------------------------------------------
+    n ⦂ β , Γ ⊢ `↑ t ⦂ α
+
+  substitution : ∀ {n} {x} {a} {Γ} {ξ α} →
+    ø ⊢ x ⦂ ξ →
+    ? ⊢ a ⦂ α →
+    Γ ⊢ [ x ] a ⦂ α
 
 
 -- lemmas
 
-⊢-injective : ∀ {n} {Γ : Context n} {t : Term n} {τ τ′} →
-  Γ ⊢ t ⦂ τ →
-  Γ ⊢ t ⦂ τ′ →
+⊢-injective : ∀ {n} {Γ : Context n} {t : Term n} {α α′} →
+  Γ ⊢ t ⦂ α →
+  Γ ⊢ t ⦂ α′ →
   ------------------------------
-  τ ≡ τ′
+  α ≡ α′
 -- name
-⊢-injective {.(1+ n)} {.(n ⦂ τ , _)} {` n} {τ} {τ′} name name = refl
+⊢-injective {0} {ø} {`1} {.`𝟙} {.`𝟙} ø⊢1⦂𝟙 ø⊢1⦂𝟙 = refl
+⊢-injective {.(1+ n)} {.(n ⦂ α , _)} {` n} {α} {α′} name name = refl
 -- application
-⊢-injective {n} {Γ} {s `⋆ t} {τ} {τ′}
-  (application {.n} {.Γ} {.s} {.t} {σ } {.τ } Γ⊢s⦂σ→τ   Γ⊢t⦂τ)
-  (application {.n} {.Γ} {.s} {.t} {σ′} {.τ′} Γ⊢s⦂σ′→τ′ Γ⊢t⦂τ′)
-  with ⊢-injective Γ⊢s⦂σ→τ Γ⊢s⦂σ′→τ′ | ⊢-injective Γ⊢t⦂τ Γ⊢t⦂τ′
+⊢-injective {n} {Γ} {s `∙ t} {α} {α′}
+  (application {.n} {.Γ} {.s} {.t} {β } {.α } Γ⊢s⦂β→α   Γ⊢t⦂α)
+  (application {.n} {.Γ} {.s} {.t} {β′} {.α′} Γ⊢s⦂β′→α′ Γ⊢t⦂α′)
+  with ⊢-injective Γ⊢s⦂β→α Γ⊢s⦂β′→α′ | ⊢-injective Γ⊢t⦂α Γ⊢t⦂α′
 ... | refl | refl = refl
 -- function
-⊢-injective {n} {Γ} {`λ .n `⦂ σ `⇒ t} {.σ `→ τ} {.σ `→ τ′}
-  (function {.n} {.Γ} {.t} {.σ} {τ } n⦂σ,Γ⊢t⦂τ)
-  (function {.n} {.Γ} {.t} {.σ} {τ′} n⦂σ,Γ⊢t⦂τ′)
-  with ⊢-injective n⦂σ,Γ⊢t⦂τ n⦂σ,Γ⊢t⦂τ′
+⊢-injective {n} {Γ} {`λ .n `⦂ β `⇒ t} {.β `→ α} {.β `→ α′}
+  (function {.n} {.Γ} {.t} {.β} {α } n⦂β,Γ⊢t⦂α)
+  (function {.n} {.Γ} {.t} {.β} {α′} n⦂β,Γ⊢t⦂α′)
+  with ⊢-injective n⦂β,Γ⊢t⦂α n⦂β,Γ⊢t⦂α′
 ... | refl = refl
 -- injection
-⊢-injective {1+ n} {.n ⦂ σ , Γ} {`↑ t} {τ} {τ′}
-  (injection {.n} {.Γ} {.t} {.σ} {.τ } Γ⊢t⦂τ)
-  (injection {.n} {.Γ} {.t} {.σ} {.τ′} Γ⊢t⦂τ′)
-  with ⊢-injective Γ⊢t⦂τ Γ⊢t⦂τ′
+⊢-injective {1+ n} {.n ⦂ β , Γ} {`↑ t} {α} {α′}
+  (injection {.n} {.Γ} {.t} {.β} {.α } Γ⊢t⦂α)
+  (injection {.n} {.Γ} {.t} {.β} {.α′} Γ⊢t⦂α′)
+  with ⊢-injective Γ⊢t⦂α Γ⊢t⦂α′
 ... | refl = refl
 
 -- examples
 
-_ : 1 ⦂ `⊤ `→ `⊤ , 0 ⦂ `⊤ ⊢ ` 1 `⋆ `↑ ` 0 ⦂ `⊤
+_ : 1 ⦂ `𝟙 `→ `𝟙 , 0 ⦂ `𝟙 , ø ⊢ ` 1 `∙ `↑ ` 0 ⦂ `𝟙
 _ = application name (injection name)
 
-_ : ø ⊢ `id ⦂ `⊤ `→ `⊤
+_ : ø ⊢ `id ⦂ `𝟙 `→ `𝟙
 _ = function name
 
-_ : ø ⊢ `const ⦂ `⊤ `→ (`⊤ `→ `⊤)
+_ : ø ⊢ `const ⦂ `𝟙 `→ (`𝟙 `→ `𝟙)
 _ = function (function name)
 
-_ : ø ⊢ `apply ⦂ (`⊤ `→ `⊤) `→ `⊤ `→ `⊤
+_ : ø ⊢ `apply ⦂ (`𝟙 `→ `𝟙) `→ `𝟙 `→ `𝟙
 _ = function (function (application (injection name) name))
 
 
@@ -126,53 +131,54 @@ _ = function (function (application (injection name) name))
 
 
 -- type unification
-unify : ∀ (σ τ : Type) → Dec (∃[ ρ ] ((σ ≡ ρ) × (τ ≡ ρ)))
-unify σ τ with σ Type.≟ τ
-...          | yes σ≡τ = yes (τ & σ≡τ & refl)
-...          | no  σ≢τ = no λ { (ρ & σ≡ρ & τ≡ρ) → ⊥-elim (σ≢τ (trans σ≡ρ (sym τ≡ρ))) }
+unify : ∀ (β α : Type) → Dec (∃[ γ ] ((β ≡ γ) × (α ≡ γ)))
+unify β α with β Type.≟ α
+...          | yes β≡α = yes (α & β≡α & refl)
+...          | no  β≢α = no λ { (γ & β≡γ & α≡γ) → ⊥-elim (β≢α (trans β≡γ (sym α≡γ))) }
 
-unify-application : ∀ (σ τ : Type) → Dec (∃[ ρ ] (σ ≡ τ `→ ρ))
-unify-application `⊤ τ = no λ ()
-unify-application (τ `→ ρ)  τ′ with τ Type.≟ τ′
-unify-application (τ `→ ρ) .τ     | yes refl = yes (ρ & refl)
-unify-application (τ `→ ρ)  τ′    | no  τ≢τ′ = no λ { (ρ & refl) → τ≢τ′ refl }
+unify-application : ∀ (β α : Type) → Dec (∃[ γ ] (β ≡ α `→ γ))
+unify-application `𝟘 α = no λ ()
+unify-application `𝟙 α = no λ ()
+unify-application (α `→ γ)  α′ with α Type.≟ α′
+unify-application (α `→ γ) .α     | yes refl = yes (γ & refl)
+unify-application (α `→ γ)  α′    | no  α≢α′ = no λ { (γ & refl) → α≢α′ refl }
 
 
 -- type inference
-infer : ∀ {n} (Γ : Context n) (t : Term n) → Dec (∃[ τ ] (Γ ⊢ t ⦂ τ))
+infer : ∀ {n} (Γ : Context n) (t : Term n) → Dec (∃[ α ] (Γ ⊢ t ⦂ α))
+-- primitive
+infer {0} ø `1 = yes (`𝟙 & ø⊢1⦂𝟙)
 -- name
-infer {1+ n}           ø  (` .n) = no λ ()
-infer {1+ n} (.n ⦂ τ , Γ) (` .n) = yes (τ & name)
+infer {1+ n} (.n ⦂ α , Γ) (` .n) = yes (α & name)
 -- application
-infer {n} Γ (s `⋆ t) with infer Γ s               | infer Γ t
-infer {n} Γ (s `⋆ t)    | yes (σ & Γ⊢s⦂σ)         | yes (τ & Γ⊢t⦂τ) with unify-application σ τ
-infer {n} Γ (s `⋆ t)    | yes (.(τ `→ ρ) & Γ⊢s⦂σ) | yes (τ & Γ⊢t⦂τ)    | yes (ρ & refl) = yes (ρ & (application Γ⊢s⦂σ Γ⊢t⦂τ))
-infer {n} Γ (s `⋆ t)    | yes (σ & Γ⊢s⦂σ)         | yes (τ & Γ⊢t⦂τ)    | no ∄[ρ]σ≡τ→ρ   = no λ { (ρ & application {.n} {.Γ} {.s} {.t} {ν} {.ρ} Γ⊢s⦂ν→ρ Γ⊢t⦂ν) →
-                                                                                                 ∄[ρ]σ≡τ→ρ (ρ & helper Γ⊢s⦂σ Γ⊢t⦂τ Γ⊢s⦂ν→ρ Γ⊢t⦂ν ∄[ρ]σ≡τ→ρ) } where
-                                                                                          helper : ∀ {n} {Γ : Context n} {s t : Term n} {σ τ ν ρ} →
-                                                                                            Γ ⊢ s ⦂ σ      → Γ ⊢ t ⦂ τ →
-                                                                                            Γ ⊢ s ⦂ ν `→ ρ → Γ ⊢ t ⦂ ν →
-                                                                                            ¬ ∃[ ρ′ ] (σ ≡ τ `→ ρ′) →
-                                                                                            σ ≡ τ `→ ρ
-                                                                                          helper Γ⊢s⦂σ Γ⊢t⦂τ Γ⊢s⦂ν→ρ Γ⊢t⦂ν ∄[ρ]σ≡τ→ρ
-                                                                                            with ⊢-injective Γ⊢s⦂σ Γ⊢s⦂ν→ρ | ⊢-injective Γ⊢t⦂τ Γ⊢t⦂ν
+infer {n} Γ (s `∙ t) with infer Γ s               | infer Γ t
+infer {n} Γ (s `∙ t)    | yes (β & Γ⊢s⦂β)         | yes (α & Γ⊢t⦂α) with unify-application β α
+infer {n} Γ (s `∙ t)    | yes (.(α `→ γ) & Γ⊢s⦂β) | yes (α & Γ⊢t⦂α)    | yes (γ & refl) = yes (γ & (application Γ⊢s⦂β Γ⊢t⦂α))
+infer {n} Γ (s `∙ t)    | yes (β & Γ⊢s⦂β)         | yes (α & Γ⊢t⦂α)    | no ∄[γ]β≡α→γ   = no λ { (γ & application {.n} {.Γ} {.s} {.t} {ν} {.γ} Γ⊢s⦂ν→γ Γ⊢t⦂ν) →
+                                                                                                 ∄[γ]β≡α→γ (γ & helper Γ⊢s⦂β Γ⊢t⦂α Γ⊢s⦂ν→γ Γ⊢t⦂ν ∄[γ]β≡α→γ) } where
+                                                                                          helper : ∀ {n} {Γ : Context n} {s t : Term n} {β α ν γ} →
+                                                                                            Γ ⊢ s ⦂ β      → Γ ⊢ t ⦂ α →
+                                                                                            Γ ⊢ s ⦂ ν `→ γ → Γ ⊢ t ⦂ ν →
+                                                                                            ¬ ∃[ γ′ ] (β ≡ α `→ γ′) →
+                                                                                            β ≡ α `→ γ
+                                                                                          helper Γ⊢s⦂β Γ⊢t⦂α Γ⊢s⦂ν→γ Γ⊢t⦂ν ∄[γ]β≡α→γ
+                                                                                            with ⊢-injective Γ⊢s⦂β Γ⊢s⦂ν→γ | ⊢-injective Γ⊢t⦂α Γ⊢t⦂ν
                                                                                           ...  | refl | refl = refl
-infer {n} Γ (s `⋆ t)    | yes (σ & Γ⊢s⦂σ)         | no ∄[τ]Γ⊢t⦂τ = no λ { (τ & application {.n} {.Γ} {.s} {.t} {ρ} {.τ} Γ⊢s⦂ρ→τ Γ⊢t⦂ρ) → ∄[τ]Γ⊢t⦂τ (ρ & Γ⊢t⦂ρ) }
-infer {n} Γ (s `⋆ t)    | no ∄[σ]Γ⊢s⦂σ            | _            = no λ { (τ & application {.n} {.Γ} {.s} {.t} {ρ} {.τ} Γ⊢s⦂ρ→τ Γ⊢t⦂σ) → ∄[σ]Γ⊢s⦂σ (ρ `→ τ & Γ⊢s⦂ρ→τ) }
+infer {n} Γ (s `∙ t)    | yes (β & Γ⊢s⦂β)         | no ∄[α]Γ⊢t⦂α = no λ { (α & application {.n} {.Γ} {.s} {.t} {γ} {.α} Γ⊢s⦂γ→α Γ⊢t⦂γ) → ∄[α]Γ⊢t⦂α (γ & Γ⊢t⦂γ) }
+infer {n} Γ (s `∙ t)    | no ∄[β]Γ⊢s⦂β            | _            = no λ { (α & application {.n} {.Γ} {.s} {.t} {γ} {.α} Γ⊢s⦂γ→α Γ⊢t⦂β) → ∄[β]Γ⊢s⦂β (γ `→ α & Γ⊢s⦂γ→α) }
 -- function 
-infer {n} Γ (`λ .n `⦂ σ `⇒ t) with infer (n ⦂ σ , Γ) t
-infer {n} Γ (`λ .n `⦂ σ `⇒ t)    | yes (τ & n⦂σ,Γ⊢t⦂τ) = yes (σ `→ τ & function n⦂σ,Γ⊢t⦂τ)
-infer {n} Γ (`λ .n `⦂ σ `⇒ t)    | no ∄[τ]n⦂σ,Γ⊢t⦂τ    = no λ { (.σ `→ τ & function n⦂σ,Γ⊢t⦂τ) → ∄[τ]n⦂σ,Γ⊢t⦂τ (τ & n⦂σ,Γ⊢t⦂τ) }
+infer {n} Γ (`λ .n `⦂ β `⇒ t) with infer (n ⦂ β , Γ) t
+infer {n} Γ (`λ .n `⦂ β `⇒ t)    | yes (α & n⦂β,Γ⊢t⦂α) = yes (β `→ α & function n⦂β,Γ⊢t⦂α)
+infer {n} Γ (`λ .n `⦂ β `⇒ t)    | no ∄[α]n⦂β,Γ⊢t⦂α    = no λ { (.β `→ α & function n⦂β,Γ⊢t⦂α) → ∄[α]n⦂β,Γ⊢t⦂α (α & n⦂β,Γ⊢t⦂α) }
 -- injection
-infer {1+ n}           ø  (`↑ t) = no λ { (τ & ()) }
-infer {1+ n} (.n ⦂ σ , Γ) (`↑ t) with infer Γ t
-infer {1+ n} (.n ⦂ σ , Γ) (`↑ t)    | yes (τ & Γ⊢t⦂τ) = yes (τ & (injection Γ⊢t⦂τ))
-infer {1+ n} (.n ⦂ σ , Γ) (`↑ t)    | no  ∄[τ]Γ⊢t⦂τ  = no (λ { (τ & injection Γ⊢t⦂τ) → ∄[τ]Γ⊢t⦂τ (τ & Γ⊢t⦂τ) })
+infer {1+ n} (.n ⦂ β , Γ) (`↑ t) with infer Γ t
+infer {1+ n} (.n ⦂ β , Γ) (`↑ t)    | yes (α & Γ⊢t⦂α) = yes (α & (injection Γ⊢t⦂α))
+infer {1+ n} (.n ⦂ β , Γ) (`↑ t)    | no  ∄[α]Γ⊢t⦂α  = no (λ { (α & injection Γ⊢t⦂α) → ∄[α]Γ⊢t⦂α (α & Γ⊢t⦂α) })
 
 
-check : ∀ {n} (Γ : Context n) (t : Term n) (τ : Type) → Dec (Γ ⊢ t ⦂ τ)
-check {n} Γ t τ with infer Γ t
-check {n} Γ t τ    | yes (τ′ & Γ⊢t⦂τ′) with unify τ τ′
-check {n} Γ t τ    | yes (τ′ & Γ⊢t⦂τ′)    | yes (.τ & refl & refl) = yes Γ⊢t⦂τ′
-check {n} Γ t τ    | yes (τ′ & Γ⊢t⦂τ′)    | no  ∄[τ″]τ≡τ″×τ′≡τ″ = no λ { Γ⊢t⦂τ → ∄[τ″]τ≡τ″×τ′≡τ″ (τ & refl & ⊢-injective Γ⊢t⦂τ′ Γ⊢t⦂τ) }
-check {n} Γ t τ    | no ∄[τ′]Γ⊢t⦂τ′    = no (λ { Γ⊢t⦂τ → ∄[τ′]Γ⊢t⦂τ′ (τ & Γ⊢t⦂τ) })
+check : ∀ {n} (Γ : Context n) (t : Term n) (α : Type) → Dec (Γ ⊢ t ⦂ α)
+check {n} Γ t α with infer Γ t
+check {n} Γ t α    | yes (α′ & Γ⊢t⦂α′) with unify α α′
+check {n} Γ t α    | yes (α′ & Γ⊢t⦂α′)    | yes (.α & refl & refl) = yes Γ⊢t⦂α′
+check {n} Γ t α    | yes (α′ & Γ⊢t⦂α′)    | no  ∄[α″]α≡α″×α′≡α″ = no λ { Γ⊢t⦂α → ∄[α″]α≡α″×α′≡α″ (α & refl & ⊢-injective Γ⊢t⦂α′ Γ⊢t⦂α) }
+check {n} Γ t α    | no ∄[α′]Γ⊢t⦂α′    = no (λ { Γ⊢t⦂α → ∄[α′]Γ⊢t⦂α′ (α & Γ⊢t⦂α) })

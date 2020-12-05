@@ -26,14 +26,20 @@ module Type where
 
   _≟_ : Decidable {A = Definitions.Type} _≡_
 
-  `⊤ ≟ `⊤ = yes refl
-  `⊤ ≟ (_ `→ _) = no λ ()
+  `𝟘 ≟ `𝟘 = yes refl
+  `𝟘 ≟ `𝟙 = no λ ()
+  `𝟘 ≟ (_ `→ _) = no λ ()
+  
+  `𝟙 ≟ `𝟙 = yes refl
+  `𝟙 ≟ `𝟘 = no λ ()
+  `𝟙 ≟ (_ `→ _) = no λ ()
 
-  (σ `→ τ) ≟ (υ `→ φ) with σ ≟ υ | τ ≟ φ
+  (β `→ α) ≟ (γ `→ δ) with β ≟ γ | α ≟ δ
   ... | yes refl | yes refl = yes refl
-  ... | yes σ≡τ  | no υ≢φ   = no λ { refl → υ≢φ refl }
-  ... | no  σ≢τ  | _        = no λ { refl → σ≢τ refl }
-  (σ `→ τ) ≟ `⊤ = no λ ()
+  ... | yes β≡α  | no γ≢δ   = no λ { refl → γ≢δ refl }
+  ... | no  β≢α  | _        = no λ { refl → β≢α refl }
+  (β `→ α) ≟ `𝟘 = no λ ()
+  (β `→ α) ≟ `𝟙 = no λ ()
 
 
   ≡-isDecEquivalence : IsDecEquivalence (_≡_ {A = Definitions.Type})
@@ -51,34 +57,41 @@ module Type where
 module Term where
 
   _≟_ : ∀ {n} → Decidable {A = Definitions.Term n} _≡_
+
+  `1 ≟ `1 = yes refl
+  `1 ≟ (_ `∙ _) = no λ ()
+  `1 ≟ (`λ _ `⦂ _ `⇒ _) = no λ ()
+  
   (` n) ≟ (` .n) = yes refl
-  (` n) ≟ (_ `⋆ _)         = no λ ()
-  (` n) ≟ (`λ _ `⦂ _ `⇒ _) = no λ ()
-  (` n) ≟ (`↑ _)           = no λ ()
+  (` n) ≟ (b `∙ b₁) = no λ ()
+  (` n) ≟ (`λ .(1+ n) `⦂ α `⇒ b) = no λ ()
+  (` n) ≟ (`↑ b) = no λ ()
 
-  (s `⋆ t) ≟ (q `⋆ r) with s ≟ q    | t ≟ r
+  (a `∙ b) ≟ (c `∙ d) with a ≟ c | b ≟ d
   ...                    | yes refl | yes refl = yes refl
-  ...                    | yes s≡q  | no  t≢r  = no λ { refl → t≢r refl }
-  ...                    | no  s≢q  | _        = no λ { refl → s≢q refl }
-  (s `⋆ t) ≟ (` _)            = no λ ()
-  (s `⋆ t) ≟ (`λ _ `⦂ _ `⇒ _) = no λ () 
-  (s `⋆ t) ≟ (`↑ _)           = no λ ()
+  ...                    | yes a≡c  | no  b≢d  = no λ { refl → b≢d refl }
+  ...                    | no  a≢c  | _        = no λ { refl → a≢c refl }
+  (a `∙ b) ≟ `1 = no λ ()
+  (a `∙ b) ≟ (` n) = no λ ()
+  (a `∙ b) ≟ (`λ _ `⦂ α `⇒ c) = no λ ()
+  (a `∙ b) ≟ (`↑ c) = no λ ()
 
-  (`λ n `⦂ τ `⇒ s) ≟ (`λ .n `⦂ σ `⇒ t) with τ Type.≟ σ | s ≟ t
+  (`λ n `⦂ α `⇒ b) ≟ (`λ .n `⦂ β `⇒ d) with α Type.≟ β | b ≟ d
   ...                                     | yes refl   | yes refl = yes refl
-  ...                                     | yes τ≡σ    | no  s≢t  = no λ { refl → s≢t refl }
-  ...                                     | no  τ≢σ    | _        = no λ { refl → τ≢σ refl }
-  (`λ n `⦂ τ `⇒ s) ≟ (` _)    = no λ ()
-  (`λ n `⦂ τ `⇒ s) ≟ (_ `⋆ _) = no λ ()
-  (`λ n `⦂ τ `⇒ s) ≟ (`↑ _)   = no λ ()
+  ...                                     | yes α≡β    | no  b≢d  = no λ { refl → b≢d refl }
+  ...                                     | no  α≢β    | _        = no λ { refl → α≢β refl }
+  (`λ .0 `⦂ α `⇒ a) ≟ `1 = no λ ()
+  (`λ .(1+ n) `⦂ α `⇒ a) ≟ (` n) = no λ ()
+  (`λ n `⦂ α `⇒ a) ≟ (b `∙ b₁) = no λ ()
+  (`λ .(1+ _) `⦂ α `⇒ a) ≟ (`↑ b) = no λ ()
 
-  (`↑ s) ≟ (`↑ t) with s ≟ t
+  (`↑ a) ≟ (`↑ b) with a ≟ b
   ...                | yes refl = yes refl
-  ...                | no  s≢t  = no λ { refl → s≢t refl }
-  (`↑ s) ≟ (` _)            = no λ ()
-  (`↑ s) ≟ (_ `⋆ _)         = no λ ()
-  (`↑ s) ≟ (`λ _ `⦂ _ `⇒ _) = no λ ()
-
+  ...                | no  a≢b  = no λ { refl → a≢b refl }
+  (`↑ a) ≟ (` _) = no λ ()
+  (`↑ a) ≟ (b `∙ b₁) = no λ ()
+  (`↑ a) ≟ (`λ .(1+ _) `⦂ α `⇒ b) = no λ ()
+  
 
   ≡-isDecEquivalence : ∀ {n} → IsDecEquivalence (_≡_ {A = Definitions.Term n})
   ≡-isDecEquivalence = record
