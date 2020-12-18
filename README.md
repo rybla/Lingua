@@ -16,11 +16,49 @@ Implementations of and reasonings about the following languages:
 
 ## λ
 
-TODO
+**λ: Simply-typed λ-calculus.**
+
+`Language/Lambda/` contains an intrinsically-typed implementation. Based on [_Programming Language Foundations in Agda –– DeBruijn: Intrinsically-typed de Bruijn representation_](https://plfa.github.io/DeBruijn/).
+
+_Tasks._
+- [x] Grammar
+- [x] Typing
+- [x] Reducing
+- [ ] Examples
+  - [x] simples
+  - [ ] Church numerals
+
 
 ## λ2
 
-TODO
+**λ2: λ with type polymorphism (System F).**
+
+`Lambda/Lambda2/` contain an intrinsically-typed implementation. Based on [_System F in Agda for Fun and Profit_](https://github.com/input-output-hk/plutus/tree/master/papers/system-f-in-agda).
+
+_Tasks._
+- [ ] Kinding
+  - [ ] properties of `_≅ₛ_`
+  - [ ] properties of `rename-⊨`
+  - [ ] properties of `reflect`
+  - [ ] properties of `reify`
+  - [ ] interactions between `rename`, `substitute`, `extend`, `evaluate`, `reflect`, `reify`, and `_≅ₛ_`
+  - [ ] properties of `_≅ₛ_`
+  - [ ] properties of `_≅ₑ_`
+  - [ ] completeness
+  - [ ] stability
+  - [ ] interactions between `rename`, `substitute`, weakenings, and single substitutions
+- [x] Typing
+- [ ] Normal Typing
+  - [ ] normalization lemmas
+  - [ ] `normalize-Type` cases:
+    - [ ] ``` `fold```
+    - [ ] ``` `unfold```
+  - [ ] `progress` cases:
+    - [ ] ```_`∙♯_```
+    - [ ] ``` `unfold```
+- [ ] Type Erasure
+  - [ ] `erase-normalize-Type-≡`
+  - [ ] erase-substitution lemmas
 
 ## λω
 
